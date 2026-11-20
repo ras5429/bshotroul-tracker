@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buckshot Roulette Tracker</title>
+<style>
+:root {
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f1f0eb;
+  --color-background-tertiary: #e8e7e2;
+  --color-border-primary: rgba(0,0,0,0.4);
+  --color-border-secondary: rgba(0,0,0,0.25);
+  --color-border-tertiary: rgba(0,0,0,0.12);
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #666666;
+  --color-text-tertiary: #999999;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --font-sans: system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background-primary: #1e1e1e;
+    --color-background-secondary: #2a2a2a;
+    --color-background-tertiary: #333333;
+    --color-border-primary: rgba(255,255,255,0.4);
+    --color-border-secondary: rgba(255,255,255,0.2);
+    --color-border-tertiary: rgba(255,255,255,0.1);
+    --color-text-primary: #f0f0f0;
+    --color-text-secondary: #aaaaaa;
+    --color-text-tertiary: #777777;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font-sans);background:var(--color-background-tertiary);color:var(--color-text-primary);padding:1rem;min-height:100vh;}
+#app{max-width:900px;margin:0 auto;padding:1rem 0;position:relative;}
+.btn{background:transparent;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:6px 14px;font-size:13px;cursor:pointer;color:var(--color-text-primary);font-family:var(--font-sans);}
+.btn:hover{background:var(--color-background-secondary);}
+.btn:active{transform:scale(0.98);}
+.btn.red{border-color:#E24B4A;color:#A32D2D;}
+.btn.blue{border-color:#378ADD;color:#185FA5;}
+.btn.sm{padding:4px 10px;font-size:12px;}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:1rem;}
+.pip-row{display:flex;gap:8px;flex-wrap:wrap;}
+.pip{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;opacity:0.5;transition:opacity 0.1s,transform 0.1s;}
+.pip:hover{opacity:0.8;transform:scale(1.08);}
+.pip.sel{opacity:1;transform:scale(1.1);}
+.pip.disabled{opacity:0.18;cursor:not-allowed;pointer-events:none;}
+.pip-shell{width:22px;height:40px;border-radius:5px;overflow:hidden;display:flex;flex-direction:column;}
+.pip-body{flex:1;}
+.pip-brass{height:10px;background:#A0782A;}
+.pip-label{font-size:11px;font-weight:500;}
+.chk-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.chk-row input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:#378ADD;}
+.chk-row label{font-size:13px;color:var(--color-text-secondary);cursor:pointer;}
+
+/* about */
+.about-toggle{font-size:12px;color:var(--color-text-tertiary);cursor:pointer;margin-bottom:12px;display:flex;align-items:center;gap:6px;user-select:none;}
+.about-toggle:hover{color:var(--color-text-secondary);}
+.about-body{font-size:13px;color:var(--color-text-secondary);line-height:1.7;margin-bottom:12px;border-left:2px solid var(--color-border-secondary);padding-left:12px;}
+.about-body p{margin-bottom:8px;}
+.about-body p:last-child{margin-bottom:0;}
+
+/* layout */
+.play-area{display:flex;gap:12px;margin-bottom:1rem;}
+.shells-side{flex:2;min-width:0;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem;}
+.info-side{flex:1;min-width:180px;display:flex;flex-direction:column;gap:10px;}
+.info-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:0.75rem 1rem;}
+
+/* shell grid */
+.shell-grid{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;}
+.shell-col{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:36px;}
+.row-label{font-size:9px;color:var(--color-text-tertiary);text-align:right;padding-right:6px;line-height:1;white-space:nowrap;}
+.shell-labels{display:flex;flex-direction:column;gap:3px;padding-top:2px;}
+/* Table shrinks to its contents so the group separators end at the last shell */
+.shell-table{display:flex;gap:0;align-items:flex-start;position:relative;width:fit-content;max-width:100%;}
+.row-sep-slot{height:6px;}
+.row-sep{position:absolute;left:0;right:0;border-bottom:1px solid var(--color-border-secondary);}
+
+/* action cell */
+.action-cell{width:34px;height:24px;border-radius:4px;border:0.5px dashed var(--color-border-secondary);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:all 0.1s;color:var(--color-text-tertiary);}
+.action-cell:hover{background:var(--color-background-secondary);border-style:solid;}
+.action-cell.set{border-style:solid;border-color:var(--color-border-secondary);color:var(--color-text-primary);}
+.action-cell.consumed{cursor:default;opacity:0.5;pointer-events:none;}
+.action-cell.disabled{opacity:0.15;cursor:not-allowed;pointer-events:none;}
+
+/* shell cell (dealer, phone, mirror, method) */
+.shell-cell{width:34px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;transition:all 0.1s;opacity:0.2;}
+.shell-cell:hover{opacity:0.6;background:var(--color-background-secondary);}
+.shell-cell.set{opacity:1;}
+.shell-cell.consumed{cursor:default;opacity:0.5;pointer-events:none;}
+.shell-cell.consumed.set{opacity:1;}
+.shell-cell.disabled{opacity:0.08;cursor:not-allowed;pointer-events:none;}
+
+/* phone cell */
+.phone-cell{width:34px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;transition:all 0.1s;opacity:0.2;}
+.phone-cell:hover{opacity:0.6;background:var(--color-background-secondary);}
+.phone-cell.set{opacity:1;}
+.phone-cell.consumed-static{opacity:0.5;pointer-events:none;}
+.phone-cell.disabled{opacity:0.08;pointer-events:none;}
+
+/* mini shells */
+.mini-shells{display:flex;gap:3px;position:relative;}
+.mini-shell{width:12px;height:22px;border-radius:3px;overflow:hidden;display:flex;flex-direction:column;opacity:0.2;position:relative;}
+.mini-shell.active{opacity:1;}
+.mini-shell.locked{pointer-events:none;}
+.mini-shell.clickable:hover{opacity:0.75;outline:1.5px solid rgba(255,255,255,0.5);}
+.ms-body{flex:1;}
+.ms-brass{height:4px;background:#A0782A;}
+.mini-question{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,0.35);}
+.mini-question-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;background:rgba(0,0,0,0.5);pointer-events:none;z-index:1;}
+
+/* polarity */
+.polarity-cell{width:34px;height:18px;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;opacity:0.2;transition:opacity 0.1s;border-radius:3px;}
+.polarity-cell:hover{opacity:0.6;background:var(--color-background-secondary);}
+.polarity-cell.active{opacity:1;}
+.polarity-cell.hidden{visibility:hidden;pointer-events:none;}
+.polarity-cell.static{pointer-events:none;opacity:0.7;}
+
+/* shell pill */
+.shell-pill{width:34px;height:44px;border-radius:5px;overflow:hidden;display:flex;flex-direction:column;position:relative;}
+.sp-body{flex:1;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:#fff;position:relative;overflow:hidden;}
+.sp-brass{height:10px;background:#A0782A;}
+.shell-pill.unknown .sp-body{color:var(--color-text-tertiary);}
+.shell-pill.unknown .sp-brass{opacity:0.3;}
+.shell-pill.current-ring{box-shadow:0 0 0 2.5px #888780;}
+.shell-pill.polarity-ring{box-shadow:0 0 0 2.5px #7F77DD;}
+.shell-col.consumed .shell-pill{opacity:0.3;}
+.shell-col.consumed .action-cell{pointer-events:none;}
+
+/* polarity diagonal split inside pill body */
+.pol-split{position:absolute;inset:0;pointer-events:none;}
+
+/* outcome + undo */
+@keyframes action-glow {
+  0%,100%{box-shadow:0 0 0 0 rgba(160,160,100,0);}
+  50%{box-shadow:0 0 0 4px rgba(200,180,60,0.45);}
+}
+.outcome-cell{width:34px;height:20px;display:flex;align-items:center;justify-content:center;font-size:14px;opacity:0.2;transition:opacity 0.1s;border-radius:3px;}
+.outcome-cell.active{opacity:1;cursor:default;}
+.outcome-cell.pending{opacity:0.75;cursor:pointer;animation:action-glow 1.6s ease-in-out infinite;border-radius:4px;}
+.outcome-cell.pending:hover{opacity:1;}
+.undo-cell{font-size:10px;color:var(--color-text-tertiary);cursor:pointer;opacity:0.6;transition:opacity 0.1s;padding:2px;}
+.undo-cell:hover{opacity:1;color:#E24B4A;}
+
+/* count table */
+.count-table{width:100%;border-collapse:collapse;font-size:11px;}
+.count-table th{color:var(--color-text-secondary);font-weight:500;padding:3px 4px;text-align:center;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);}
+.count-table th:last-child{border-right:none;}
+.count-table td{padding:3px 4px;text-align:center;border-right:0.5px solid var(--color-border-tertiary);}
+.count-table td:last-child{border-right:none;}
+.count-table tr.live-row td{color:#A32D2D;}
+.count-table tr.blank-row td{color:#185FA5;}
+.count-table td.row-header{text-align:left;font-weight:500;color:var(--color-text-secondary);font-size:10px;border-right:0.5px solid var(--color-border-tertiary);}
+
+/* prob */
+.prob-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:1rem;}
+.prob-title{font-size:12px;color:var(--color-text-secondary);font-weight:500;margin:0 0 8px;}
+.prob-empty{font-size:13px;color:var(--color-text-secondary);font-style:italic;margin:0;}
+.pie-row{display:flex;align-items:center;gap:14px;}
+.pie-vals{display:flex;flex-direction:column;gap:4px;}
+.pie-val{display:flex;align-items:center;gap:6px;font-size:13px;}
+.pie-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+
+/* log */
+.log-entry{font-size:12px;padding:4px 0;border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);white-space:pre-wrap;word-break:break-word;font-family:monospace;}
+#log-card{max-height:400px;overflow-y:auto;}
+#log-list{padding:8px;background:var(--color-background-secondary);border-radius:4px;font-family:monospace;font-size:11px;}
+
+/* modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:flex-start;justify-content:center;padding-top:60px;z-index:100;}
+.modal-box{background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-lg);padding:1.25rem;min-width:240px;max-width:400px;width:90%;position:relative;max-height:80vh;overflow-y:auto;}
+.modal-title{font-weight:500;font-size:14px;margin:0 0 14px;padding-right:24px;}
+.modal-close{position:absolute;top:10px;right:12px;font-size:18px;cursor:pointer;color:var(--color-text-secondary);background:none;border:none;font-family:var(--font-sans);line-height:1;}
+.modal-close:hover{color:var(--color-text-primary);}
+.modal-opts{display:flex;gap:8px;flex-wrap:wrap;}
+.modal-opt{padding:7px 14px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);cursor:pointer;font-size:13px;transition:all 0.1s;font-family:var(--font-sans);}
+.modal-opt:hover{background:var(--color-background-secondary);}
+.modal-opt.opt-live{border-color:#E24B4A;color:#A32D2D;}
+.modal-opt.opt-live:hover{background:#FCEBEB;}
+.modal-opt.opt-blank{border-color:#378ADD;color:#185FA5;}
+.modal-opt.opt-blank:hover{background:#E6F1FB;}
+.action-icons{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.action-icon-opt{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:8px 10px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);transition:all 0.1s;min-width:56px;}
+.action-icon-opt:hover{background:var(--color-background-secondary);}
+.ai-icon{font-size:22px;line-height:1;}
+.ai-label{font-size:10px;color:var(--color-text-secondary);text-align:center;}
+.ai-tip{font-size:9px;color:var(--color-text-tertiary);text-align:center;margin-top:2px;line-height:1.3;}
+
+/* legend */
+.legend-section-title{font-size:11px;font-weight:500;color:var(--color-text-tertiary);margin:12px 0 4px;text-transform:uppercase;letter-spacing:0.04em;}
+.legend-row{display:flex;align-items:flex-start;gap:10px;padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary);}
+.legend-icon{font-size:15px;min-width:28px;text-align:center;flex-shrink:0;}
+.legend-name{font-weight:500;min-width:90px;flex-shrink:0;font-size:12px;}
+.legend-desc{color:var(--color-text-secondary);font-size:12px;line-height:1.4;}
+
+@media(max-width:600px){.play-area{flex-direction:column;}.info-side{min-width:0;}}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- SETUP -->
+  <div id="setup-panel" class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <p style="font-weight:500;font-size:15px;">New round — select shell counts</p>
+      <button class="btn sm" onclick="showLegend()">Help</button>
+    </div>
+
+    <!-- ABOUT -->
+    <div class="about-toggle" onclick="toggleAbout()" id="about-toggle">
+      <span id="about-arrow">▶</span> About this tracker
+    </div>
+    <div id="about-body" class="about-body" style="display:none;">
+      <p>This tracker was built by me (Claude, an AI made by Anthropic) and a very determined human who apparently needed a spreadsheet to survive a shotgun roulette game. It was made to track shell probabilities in <strong>Buckshot Roulette</strong>, the genuinely unhinged game by solo developer <strong>Mike Klubnika</strong>. Go buy it. It's worth it.</p>
+      <p>The goal here is simple: keep a lightweight, fast companion open alongside the game so you always know the odds on the next shell. It tracks what you know, what you've used, and what's mathematically left — so you can make slightly less terrible decisions under pressure.</p>
+      <p>A few things it intentionally doesn't track: dealer item usage, actions that don't affect the shell pool, and your general life choices. It also won't tell you whether to shoot yourself or the dealer. That's on you.</p>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <p style="font-size:13px;color:#A32D2D;font-weight:500;margin:0 0 10px;">Live <span id="live-chosen" style="font-weight:400;color:var(--color-text-secondary);"></span></p>
+      <div class="pip-row" id="live-pips"></div>
+    </div>
+    <div style="margin-bottom:18px;">
+      <p style="font-size:13px;color:#185FA5;font-weight:500;margin:0 0 10px;">Blank <span id="blank-chosen" style="font-weight:400;color:var(--color-text-secondary);"></span></p>
+      <div class="pip-row" id="blank-pips"></div>
+    </div>
+    <div class="chk-row">
+      <input type="checkbox" id="chk-log-setup" onchange="showLog=this.checked;var g=document.getElementById('chk-log-game');if(g)g.checked=this.checked;">
+      <label for="chk-log-setup" title="Show a running log of every action taken this round">Show event log</label>
+    </div>
+    <div id="setup-err" style="color:#A32D2D;font-size:12px;min-height:14px;margin-bottom:8px;"></div>
+    <button class="btn blue" id="start-btn" onclick="startRound()" style="opacity:0.35;pointer-events:none;">Start round</button>
+  </div>
+
+  <!-- GAME -->
+  <div id="game-panel" style="display:none;">
+    <div class="play-area">
+      <div class="shells-side">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="font-weight:500;font-size:14px;">Shell sequence</span>
+          <button class="btn sm" onclick="showLegend()" style="margin-left:auto;">Help</button>
+        </div>
+        <div class="shell-table">
+          <div class="shell-labels">
+            <div style="height:20px;" class="row-label" title="🤵 Dealer — tap to mark this shell as a dealer turn. Hides phone/mirror/fire controls. Click ✅ to resolve.">Dealer</div>
+            <div style="height:20px;" class="row-label" title="☎️ Phone — peek any future shell's type with the burner phone. Does not resolve it.">Phone</div>
+            <div style="height:20px;" class="row-label" title="🪞 Mirror — reveal the current shell's type now before firing. Sets Claimed.">Mirror</div>
+            <div style="height:22px;" class="row-label" title="Claimed — values you enter from phone or mirror. You are responsible for these values; they affect probability until the shell is actually ejected.">Claimed</div>
+            <div style="height:18px;" class="row-label" title="🔄 Invert — arm the inverter item. Flips the outcome: live becomes blank and vice versa.">Invert</div>
+            <div class="row-sep-slot"><div class="row-sep"></div></div>
+            <div style="height:20px;" class="row-label" title="💥/🍺 Fire or Eject — choose whether to fire the shell or eject it with beer.">Fire/Eject</div>
+            <div style="height:20px;" class="row-label" title="Action — tap the icon to confirm what happened (fire, eject, dealer resolve). Glows when waiting for your input.">Action</div>
+            <div class="row-sep-slot"><div class="row-sep"></div></div>
+            <div style="height:44px;" class="row-label" title="Ejected — populated only after an action is completed. Once populated, these values affect probability and override incorrect Claimed entries.">Ejected</div>
+            <div style="height:14px;" class="row-label"></div>
+          </div>
+          <div class="shell-grid" id="shell-row"></div>
+        </div>
+      </div>
+
+      <div class="info-side">
+        <div class="info-card">
+          <p style="font-weight:500;font-size:13px;margin:0 0 8px;">Shell counts</p>
+          <table class="count-table">
+            <thead>
+              <tr>
+                <th rowspan="2"></th>
+                <th rowspan="2" title="Shells loaded at round start">Start</th>
+                <th colspan="2" title="Completed inverter flips">Inversions</th>
+                <th rowspan="2" title="Actual count after completed inverter flips">Actual</th>
+                <th rowspan="2" title="Still in the tube after completed actions">In tube</th>
+                <th rowspan="2" title="Ejected or fired">Ejected</th>
+              </tr>
+              <tr>
+                <th title="Gained via completed inverter flip">+</th>
+                <th title="Lost via completed inverter flip">−</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="live-row">
+                <td class="row-header">🔴 Live</td>
+                <td id="t-live-start">0</td><td id="t-live-gain">—</td>
+                <td id="t-live-lose">—</td><td id="t-live-actual">0</td>
+                <td id="t-live-tube">0</td><td id="t-live-eject">0</td>
+              </tr>
+              <tr class="blank-row">
+                <td class="row-header">🔵 Blank</td>
+                <td id="t-blank-start">0</td><td id="t-blank-gain">—</td>
+                <td id="t-blank-lose">—</td><td id="t-blank-actual">0</td>
+                <td id="t-blank-tube">0</td><td id="t-blank-eject">0</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="info-card">
+          <div class="chk-row" style="margin-bottom:8px;">
+            <input type="checkbox" id="chk-log-game" onchange="showLog=this.checked;var s=document.getElementById('chk-log-setup');if(s)s.checked=this.checked;renderLog();">
+            <label for="chk-log-game" title="Show a running log of every action taken this round">Show event log</label>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn sm" onclick="clearShells()" title="Reset all shells to unknown, keep counts">Clear shells</button>
+            <button class="btn red sm" onclick="resetAll()">New round</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prob-card">
+      <p style="font-weight:500;font-size:14px;margin:0 0 12px;">Probability</p>
+      <div id="prob-next"></div>
+      <div id="prob-divider" style="height:0.5px;background:var(--color-border-tertiary);margin:12px 0;display:none;"></div>
+      <div id="prob-unknown"></div>
+    </div>
+
+    <div id="log-card" style="display:none;" class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <p style="font-weight:500;font-size:14px;margin:0;">Event log</p>
+        <button class="btn sm" onclick="copyLogToClipboard()" title="Copy entire log to clipboard">Copy log</button>
+      </div>
+      <div id="log-list"></div>
+    </div>
+
+    <div id="done-banner" style="display:none;" class="card">
+      <p style="font-weight:500;">Round over — all shells resolved.</p>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div id="modal" style="display:none;" class="modal-overlay" onclick="handleOverlayClick(event)">
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <p class="modal-title" id="modal-title"></p>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let shells=[], liveTot=0, blankTot=0;
+let chosenLive=null, chosenBlank=null;
+let showLog=false, log=[];
+
+const ACTIONS={
+  blind:{
+    icon:'💀', label:'Blind fire', emoji:'💥',
+    tooltip:'Good luck — hope your probabilities are good. Requires manual fire to confirm outcome.'
+  },
+  mirror:{
+    icon:'🪞', label:'Mirror', emoji:'💥',
+    tooltip:'Use a mirror to peek at the next shell. Reveals the type — then requires a manual fire to resolve.'
+  },
+  beer:{
+    icon:'🍺', label:'Beer', emoji:'🍺',
+    tooltip:'Crack one open and eject the next shell without firing. Resolves immediately — no fire needed.'
+  },
+  dealer:{
+    icon:'🤵', label:'Dealer', emoji:'✅',
+    tooltip:"Represents the final outcome of a dealer's turn — whatever they did, record it here. Resolves immediately."
+  }
+};
+
+function toggleAbout(){
+  const body=document.getElementById('about-body');
+  const arrow=document.getElementById('about-arrow');
+  const shown=body.style.display!=='none';
+  body.style.display=shown?'none':'block';
+  arrow.textContent=shown?'▶':'▼';
+}
+
+function handleOverlayClick(e){
+  if(e.target===document.getElementById('modal')) closeModal();
+}
+
+function makePipShell(type){
+  const el=document.createElement('div');
+  el.className='pip-shell';
+  const body=document.createElement('div');
+  body.className='pip-body';
+  body.style.background=type==='live'?'#E24B4A':'#378ADD';
+  const brass=document.createElement('div');
+  brass.className='pip-brass';
+  el.appendChild(body); el.appendChild(brass);
+  return el;
+}
+
+function buildPips(){
+  ['live','blank'].forEach(type=>{
+    const row=document.getElementById(type+'-pips');
+    row.innerHTML='';
+    for(let i=1;i<=8;i++){
+      const chosen=type==='live'?chosenLive:chosenBlank;
+      const other=type==='live'?chosenBlank:chosenLive;
+      const wrap=document.createElement('div');
+      wrap.className='pip'+(chosen===i?' sel':'')+(other!==null&&other+i>8?' disabled':'');
+      wrap.appendChild(makePipShell(type));
+      const lbl=document.createElement('span');
+      lbl.className='pip-label';
+      lbl.style.color=type==='live'?'#A32D2D':'#185FA5';
+      lbl.textContent=i;
+      wrap.appendChild(lbl);
+      wrap.onclick=()=>type==='live'?pickLive(i):pickBlank(i);
+      row.appendChild(wrap);
+    }
+  });
+  updateStartBtn();
+}
+
+function pickLive(n){
+  chosenLive=n;
+  if(chosenBlank===null||chosenLive+chosenBlank>8) chosenBlank=Math.min(n,8-n)||null;
+  document.getElementById('live-chosen').textContent=n?' — '+n+' selected':'';
+  document.getElementById('blank-chosen').textContent=chosenBlank?' — '+chosenBlank+' selected':'';
+  document.getElementById('setup-err').textContent='';
+  buildPips();
+}
+
+function pickBlank(n){
+  if(chosenLive!==null&&chosenLive+n>8){document.getElementById('setup-err').textContent='Live + blank cannot exceed 8.';return;}
+  chosenBlank=n;
+  if(chosenLive===null||chosenBlank+chosenLive>8) chosenLive=Math.min(n,8-n)||null;
+  document.getElementById('live-chosen').textContent=chosenLive?' — '+chosenLive+' selected':'';
+  document.getElementById('blank-chosen').textContent=n?' — '+n+' selected':'';
+  document.getElementById('setup-err').textContent='';
+  buildPips();
+}
+
+function updateStartBtn(){
+  const ok=chosenLive&&chosenBlank&&chosenLive+chosenBlank<=8;
+  const btn=document.getElementById('start-btn');
+  btn.style.opacity=ok?'1':'0.35';
+  btn.style.pointerEvents=ok?'auto':'none';
+}
+
+function startRound(){
+  const l=chosenLive,b=chosenBlank;
+  if(!l||!b||l+b>8) return;
+  liveTot=l; blankTot=b;
+  shells=Array.from({length:l+b},(_,i)=>({
+    idx:i, 
+    // Row 1: Dealer
+    isDealer:false,
+    // Row 2: Phone (did you peek this shell ahead of time?)
+    hasPhone:false, phoneType:null,
+    // Row 3: Mirror (peek now?)
+    hasMirror:false, mirrorType:null,
+    // Row 4: Inverter
+    polarity:false,
+    // Row 5: Resolution (Fire or Eject)
+    resolution:null, // 'fire' or 'eject'
+    // Outcome tracking
+    knownType:null, loadedType:null, knownMismatch:false, consumed:false
+  }));
+  log=[];
+  document.getElementById('setup-panel').style.display='none';
+  document.getElementById('game-panel').style.display='block';
+  document.getElementById('done-banner').style.display='none';
+  render();
+}
+
+function clearShells(){
+  shells.forEach(s=>{
+    s.isDealer=false; s.hasPhone=false; s.phoneType=null;
+    s.hasMirror=false; s.mirrorType=null;
+    s.polarity=false; s.resolution=null;
+    s.knownType=null; s.loadedType=null; s.knownMismatch=false; s.consumed=false;
+  });
+  log=[];
+  addLog(-1,'🧹 Clear shells: reset all shells to unknown');
+  document.getElementById('done-banner').style.display='none';
+  render();
+}
+
+function resetAll(){
+  shells=[]; chosenLive=null; chosenBlank=null; log=[];
+  document.getElementById('live-chosen').textContent='';
+  document.getElementById('blank-chosen').textContent='';
+  document.getElementById('setup-err').textContent='';
+  document.getElementById('setup-panel').style.display='block';
+  document.getElementById('game-panel').style.display='none';
+  buildPips();
+}
+
+function currentIdx(){ return shells.findIndex(s=>!s.consumed); }
+
+function refreshKnownFromSources(s){
+  if(s.hasMirror&&s.mirrorType){
+    s.knownType=s.mirrorType;
+  } else if(s.hasPhone&&s.phoneType){
+    s.knownType=s.phoneType;
+  } else {
+    s.knownType=null;
+  }
+}
+
+// ── PHONE ROW ──
+function tapPhone(i){
+  const s=shells[i];
+  if(s.consumed) return;
+  const ci=currentIdx();
+  // phone not allowed on current shell
+  if(i===ci) return;
+  if(s.phoneType){
+    // toggle off
+    const oldType=s.phoneType;
+    s.phoneType=null;
+    refreshKnownFromSources(s);
+    addLog(i,'☎️ Phone cleared (was '+oldType+')');
+    render(); return;
+  }
+  showTypeModal('What type of round?', type=>{
+    s.phoneType=type;
+    s.knownType=type;
+    addLog(i,'☎️ Phone: '+type);
+    render();
+  });
+}
+
+// ── ACTION MODAL ──
+function showTypeModal(title, cb, opts){
+  opts=opts||{};
+  showModal(title, body=>{
+    const container=document.createElement('div');
+    container.className='modal-opts';
+
+    // Live option — dim and disable if impossible.
+    const lv=document.createElement('div');
+    lv.className='modal-opt opt-live';
+    lv.innerHTML='🔴 Live';
+    if(opts.impossibleLive){
+      lv.style.opacity='0.4';
+      lv.style.cursor='not-allowed';
+      lv.title='This is not mathematically possible. Check the event log if the math looks wrong.';
+    } else {
+      lv.onclick=()=>{ closeModal(); cb('live'); };
+    }
+    if(!opts.onlyBlank) container.appendChild(lv);
+
+    // Blank option — dim and disable if impossible.
+    const bk=document.createElement('div');
+    bk.className='modal-opt opt-blank';
+    bk.innerHTML='🔵 Blank';
+    if(opts.impossibleBlank){
+      bk.style.opacity='0.4';
+      bk.style.cursor='not-allowed';
+      bk.title='This is not mathematically possible. Check the event log if the math looks wrong.';
+    } else {
+      bk.onclick=()=>{ closeModal(); cb('blank'); };
+    }
+    if(!opts.onlyLive) container.appendChild(bk);
+
+    body.appendChild(container);
+
+    // Note when one option is mathematically impossible
+    if(opts.impossibleLive||opts.impossibleBlank){
+      const note=document.createElement('p');
+      note.style.cssText='font-size:10px;color:var(--color-text-tertiary);text-align:center;margin-top:8px;margin-bottom:0;line-height:1.4;';
+      const expected=opts.impossibleLive?'🔵 Blank':'🔴 Live';
+      note.textContent=expected+' is the only mathematically valid option. If that\'s wrong, check the event log.';
+      body.appendChild(note);
+    }
+  });
+}
+
+// ── OUTCOME TAP ──
+function tapOutcome(i){
+  const s=shells[i];
+  if(s.consumed) return;
+  const ci=currentIdx();
+  if(i!==ci) return;
+  if(!s.resolution&&!s.isDealer) return;
+
+  // Calculate what's possible based on remaining counts
+  let liveGain=0,liveLose=0,blankGain=0,blankLose=0,liveEject=0,blankEject=0;
+  shells.forEach(sh=>{
+    if(sh.consumed&&sh.polarity&&sh.knownType){
+      if(sh.knownType==='live'){liveLose++;blankGain++;}
+      else{blankLose++;liveGain++;}
+    }
+    if(sh.consumed){
+      if(sh.loadedType==='live') liveEject++;
+      else if(sh.loadedType==='blank') blankEject++;
+    }
+  });
+  const liveActual=liveTot+liveGain-liveLose;
+  const blankActual=blankTot+blankGain-blankLose;
+  // For impossibility check: only count what's already ejected, not future claims
+  const livePossible=liveActual-liveEject>0;
+  const blankPossible=blankActual-blankEject>0;
+  const modalImpossibleLive=s.polarity?!blankPossible:!livePossible;
+  const modalImpossibleBlank=s.polarity?!livePossible:!blankPossible;
+
+  // Handle Dealer — ask inverter explicitly when possible; auto-invert when mathematically impossible
+  if(s.isDealer){
+    showTypeModal('Dealer — what type was ejected?', type=>{
+      // Preserve phone flag before updating state (dealer can have phone prediction)
+      const preservedHasPhone=s.hasPhone;
+      const preservedPhoneType=s.phoneType;
+      
+      const impossibleLive=type==='live'&&!livePossible&&blankPossible;
+      const impossibleBlank=type==='blank'&&!blankPossible&&livePossible;
+      const countMismatch=impossibleLive||impossibleBlank;
+
+      if(countMismatch){
+        // Impossible without invert — auto-record it
+        s.knownType=type==='live'?'blank':'live';
+        s.polarity=true;
+        s.loadedType=type;
+        s.consumed=true;
+        // Restore phone flag after resolution
+        s.hasPhone=preservedHasPhone;
+        s.phoneType=preservedPhoneType;
+        addLog(i,'🤵 Dealer ejected '+type+' 🔄 (inverter auto-detected — only option)');
+        render();
+      } else {
+        // Possible — ask user explicitly if dealer used inverter
+        // But check if one option would be mathematically impossible
+        const invertedType=type==='live'?'blank':'live';
+        const noInvertPossible=(type==='live'?livePossible:blankPossible);
+        const yesInvertPossible=(invertedType==='live'?livePossible:blankPossible);
+        
+        // If only one path is possible, auto-resolve without asking
+        if(!noInvertPossible&&yesInvertPossible){
+          // Inverter MUST have been used
+          s.knownType=invertedType;
+          s.polarity=true;
+          s.loadedType=type;
+          s.consumed=true;
+          s.hasPhone=preservedHasPhone;
+          s.phoneType=preservedPhoneType;
+          addLog(i,'🤵 Dealer ejected '+type+' 🔄 (inverter required — only possibility)');
+          render();
+        } else if(noInvertPossible&&!yesInvertPossible){
+          // Inverter was NOT used
+          const prevClaimed=s.knownType;
+          const mismatch=prevClaimed&&prevClaimed!==type;
+          s.knownType=prevClaimed||type;
+          s.loadedType=type;
+          s.knownMismatch=mismatch||false;
+          s.consumed=true;
+          s.hasPhone=preservedHasPhone;
+          s.phoneType=preservedPhoneType;
+          if(mismatch){
+            addLog(i,'🤵 Dealer ejected '+type+' ⚠️ Claimed was '+prevClaimed+' — assuming Claimed entry wrong');
+          } else {
+            addLog(i,'🤵 Dealer ejected '+type);
+          }
+          render();
+        } else {
+          // Both paths possible — ask user
+          showModal('Did the dealer use the inverter?', body=>{
+            const note=document.createElement('p');
+            note.style.cssText='font-size:12px;color:var(--color-text-secondary);margin:0 0 12px;line-height:1.5;';
+            note.textContent='The dealer ejected '+type+'.';
+            body.appendChild(note);
+            const opts=document.createElement('div');
+            opts.className='modal-opts';
+
+            const yes=document.createElement('div');
+            yes.className='modal-opt';
+            yes.textContent='Yes';
+            yes.onclick=()=>{
+              closeModal();
+              // Inverter used: what was loaded is opposite of what ejected
+              s.knownType=type==='live'?'blank':'live';
+              s.polarity=true;
+              s.loadedType=type;
+              s.consumed=true;
+              // Restore phone flag after resolution
+              s.hasPhone=preservedHasPhone;
+              s.phoneType=preservedPhoneType;
+              addLog(i,'🤵 Dealer ejected '+type+' 🔄 (inverter confirmed — was '+s.knownType+')');
+              render();
+            };
+
+            const no=document.createElement('div');
+            no.className='modal-opt';
+            no.textContent='No';
+            no.onclick=()=>{
+              closeModal();
+              const prevClaimed=s.knownType;
+              const mismatch=prevClaimed&&prevClaimed!==type;
+              s.knownType=prevClaimed||type;
+              s.loadedType=type;
+              s.knownMismatch=mismatch||false;
+              s.consumed=true;
+              // Restore phone flag after resolution
+              s.hasPhone=preservedHasPhone;
+              s.phoneType=preservedPhoneType;
+              if(mismatch){
+                addLog(i,'🤵 Dealer ejected '+type+' ⚠️ Claimed was '+prevClaimed+' — assuming Claimed entry wrong');
+              } else {
+                addLog(i,'🤵 Dealer ejected '+type);
+              }
+              render();
+            };
+
+            opts.appendChild(yes);
+            opts.appendChild(no);
+            body.appendChild(opts);
+          });
+        }
+      }
+    }); // no opts — both options always clickable for dealer
+    return;
+  }
+  // Handle Fire (Blind fire or Mirror or Phone)
+  if(s.resolution==='fire'){
+    const isBlindFire=!s.hasPhone&&!s.hasMirror;
+
+    showTypeModal(title=isBlindFire?'Blind fire — what came out?':'Fire — what came out?', type=>{
+      // Preserve phone and mirror flags before updating state
+      const preservedHasPhone=s.hasPhone;
+      const preservedPhoneType=s.phoneType;
+      const preservedHasMirror=s.hasMirror;
+      const preservedMirrorType=s.mirrorType;
+      
+      if(s.polarity){
+        // Manually armed inverter
+        const loadedType=type==='live'?'blank':'live';
+        const prevClaimed=s.knownType;
+        // Check if the inverted prediction matches what came out
+        const expectedEjected=prevClaimed?(prevClaimed==='live'?'blank':'live'):null;
+        const mismatch=expectedEjected&&expectedEjected!==type;
+        // For counting: use loaded value. For display: keep claimed value if it exists.
+        if(mismatch){
+          // Mismatch: keep the claimed prediction for display, but store loaded for counting
+          s.knownType=prevClaimed; // keep user's prediction
+        } else {
+          // Match: use loaded value (for proper inversion counting)
+          s.knownType=loadedType;
+        }
+        s.loadedType=type; // what actually came out/was ejected
+        s.knownMismatch=mismatch||false;
+        const msg=isBlindFire?'💀 Blind fire':'💥 Fire';
+        if(mismatch){
+          addLog(i,msg+': ejected '+type+' 🔄 ⚠️ Expected '+expectedEjected+' after inversion — assuming prediction was wrong');
+        } else {
+          addLog(i,msg+': ejected '+type+' (inverter armed, was '+loadedType+')');
+        }
+      } else{
+        // No inverter — outcome wins, note any mismatch with Claimed
+        const prevClaimed=s.knownType;
+        const mismatch=prevClaimed&&prevClaimed!==type;
+        s.knownType=prevClaimed||type; // keep original Claimed for display
+        s.loadedType=type;
+        s.knownMismatch=mismatch||false;
+        const msg=isBlindFire?'💀 Blind fire':'💥 Fire';
+        if(mismatch){
+          addLog(i,msg+': ejected '+type+' ⚠️ Claimed was '+prevClaimed+' — assuming Claimed entry was wrong');
+        } else {
+          addLog(i,msg+': '+type);
+        }
+      }
+      s.consumed=true;
+      // Restore phone and mirror flags after resolution
+      s.hasPhone=preservedHasPhone;
+      s.phoneType=preservedPhoneType;
+      s.hasMirror=preservedHasMirror;
+      s.mirrorType=preservedMirrorType;
+      render();
+    },{impossibleLive:modalImpossibleLive,impossibleBlank:modalImpossibleBlank});
+    return;
+  }
+
+  // Handle Eject (Beer)
+  if(s.resolution==='eject'){
+    showTypeModal('Beer — what type was ejected?', type=>{
+      // Preserve phone and mirror flags before updating state
+      const preservedHasPhone=s.hasPhone;
+      const preservedPhoneType=s.phoneType;
+      const preservedHasMirror=s.hasMirror;
+      const preservedMirrorType=s.mirrorType;
+      
+      if(s.polarity){
+        // Manually armed inverter
+        const loadedType=type==='live'?'blank':'live';
+        const prevClaimed=s.knownType;
+        // Check if the inverted prediction matches what came out
+        const expectedEjected=prevClaimed?(prevClaimed==='live'?'blank':'live'):null;
+        const mismatch=expectedEjected&&expectedEjected!==type;
+        // For counting: use loaded value. For display: keep claimed value if it exists.
+        if(mismatch){
+          // Mismatch: keep the claimed prediction for display
+          s.knownType=prevClaimed; // keep user's prediction
+        } else {
+          // Match: use loaded value (for proper inversion counting)
+          s.knownType=loadedType;
+        }
+        s.loadedType=type;
+        s.knownMismatch=mismatch||false;
+        if(mismatch){
+          addLog(i,'🍺 Beer ejected '+type+' 🔄 ⚠️ Expected '+expectedEjected+' after inversion — assuming prediction was wrong');
+        } else {
+          addLog(i,'🍺 Beer ejected '+type+' (inverter armed, was '+loadedType+')');
+        }
+      } else {
+        // No inverter — outcome wins, note any mismatch
+        const prevClaimed=s.knownType;
+        const mismatch=prevClaimed&&prevClaimed!==type;
+        s.knownType=prevClaimed||type;
+        s.loadedType=type;
+        s.knownMismatch=mismatch||false;
+        if(mismatch){
+          addLog(i,'🍺 Beer ejected '+type+' ⚠️ Claimed was '+prevClaimed+' — assuming Claimed entry was wrong');
+        } else {
+          addLog(i,'🍺 Beer: '+type);
+        }
+      }
+      s.consumed=true;
+      // Restore phone and mirror flags after resolution
+      s.hasPhone=preservedHasPhone;
+      s.phoneType=preservedPhoneType;
+      s.hasMirror=preservedHasMirror;
+      s.mirrorType=preservedMirrorType;
+      render();
+    },{impossibleLive:modalImpossibleLive,impossibleBlank:modalImpossibleBlank});
+    return;
+  }
+}
+
+// ── POLARITY ──
+
+// ── UNDO ──
+function undoFrom(i){
+  for(let j=i;j<shells.length;j++){
+    const s=shells[j];
+    // Preserve phone peeks on future shells before wiping state
+    const savedHasPhone=j>i?s.hasPhone:false;
+    const savedPhoneType=j>i?s.phoneType:null;
+    s.isDealer=false; s.hasPhone=false; s.hasMirror=false;
+    s.polarity=false; s.resolution=null;
+    s.loadedType=null; s.consumed=false; s.knownMismatch=false;
+    s.mirrorType=null; s.knownType=null;
+    // Restore phone peek on future shells
+    if(j>i&&savedHasPhone){
+      s.hasPhone=true;
+      s.phoneType=savedPhoneType;
+      s.knownType=savedPhoneType; // phone sets knownType, restore it too
+    }
+  }
+  addLog(i,'↩️ Undo: rewound to this shell');
+  render();
+}
+
+// ── PILL HELPERS ──
+function pillBodyBg(type){ return type==='live'?'#E24B4A':type==='blank'?'#378ADD':'var(--color-background-secondary)'; }
+function oppositeColor(type){ return type==='live'?'#378ADD':'#E24B4A'; }
+
+function makePolaritySplit(baseType){
+  // diagonal split SVG: smaller wedge of base type in top-left, majority is new (opposite) color
+  const base=pillBodyBg(baseType);
+  const opp=oppositeColor(baseType);
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('width','100%'); svg.setAttribute('height','100%');
+  svg.style.cssText='position:absolute;inset:0;';
+  svg.setAttribute('viewBox','0 0 34 34');
+  svg.setAttribute('preserveAspectRatio','none');
+  // fill entire background with new color
+  const bg=document.createElementNS('http://www.w3.org/2000/svg','rect');
+  bg.setAttribute('width','34'); bg.setAttribute('height','34'); bg.setAttribute('fill',opp);
+  // small triangle in top-left corner showing original type (30% of area)
+  const tri=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+  tri.setAttribute('points','0,0 20,0 0,20'); tri.setAttribute('fill',base); tri.setAttribute('opacity','0.85');
+  svg.appendChild(bg); svg.appendChild(tri);
+  return svg;
+}
+
+function makeMiniShellEl(type, question, clickable, onClickLive, onClickBlank){
+  const el=document.createElement('div');
+  el.className='mini-shell'+(clickable?'':' locked')+(type?' active':'');
+  
+  // Set tooltip
+  if(question){
+    el.title='unknown shell — blind fire result is a mystery.';
+  } else if(type==='live'){
+    el.title='🔴 Live shell';
+  } else if(type==='blank'){
+    el.title='🔵 Blank shell';
+  } else if(clickable){
+    el.title='Tap to set shell type.';
+  } else {
+    el.title='Shell type unknown.';
+  }
+  
+  if(clickable){
+    el.style.cursor='pointer';
+    el.onclick=(e)=>{
+      e.stopPropagation();
+      if(type==='live') onClickLive();
+      else if(type==='blank') onClickBlank();
+      else {
+        // neither set, show modal to pick
+        showTypeModal('Set shell type', (newType)=>{
+          if(newType==='live') onClickLive();
+          else onClickBlank();
+        });
+      }
+    };
+  }
+  const body=document.createElement('div');
+  body.className='ms-body';
+  body.style.background=pillBodyBg(type||null);
+  const brass=document.createElement('div');
+  brass.className='ms-brass';
+  if(!type) brass.style.opacity='0.2';
+  el.appendChild(body); el.appendChild(brass);
+  if(question){
+    const q=document.createElement('div');
+    q.className='mini-question'; q.textContent='?';
+    el.appendChild(q);
+  }
+  return el;
+}
+
+function makePieChart(pL,pB,size){
+  const r=size/2,cx=r,cy=r;
+  if(pL>=100) return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'"><circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="#E24B4A"/></svg>';
+  if(pB>=100) return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'"><circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="#378ADD"/></svg>';
+  const angle=pL/100*Math.PI*2;
+  const x2=cx+r*Math.sin(angle),y2=cy-r*Math.cos(angle);
+  const large=pL>50?1:0;
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'"><circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="#378ADD"/><path d="M'+cx+' '+cy+' L'+cx+' '+(cy-r)+' A'+r+' '+r+' 0 '+large+' 1 '+x2+' '+y2+' Z" fill="#E24B4A"/></svg>';
+}
+
+function renderProbSection(container,title,pL,pB,isEmpty,emptyMsg){
+  container.innerHTML='';
+  const t=document.createElement('p'); t.className='prob-title'; t.textContent=title;
+  container.appendChild(t);
+  if(isEmpty){
+    const e=document.createElement('p'); e.className='prob-empty'; e.textContent=emptyMsg||'—';
+    container.appendChild(e); return;
+  }
+  const pr=document.createElement('div'); pr.className='pie-row';
+  const pw=document.createElement('div');
+  pw.innerHTML=makePieChart(pL,pB,52);
+  pw.style.cssText='flex-shrink:0;border-radius:50%;overflow:hidden;';
+  const vals=document.createElement('div'); vals.className='pie-vals';
+  vals.innerHTML='<div class="pie-val"><div class="pie-dot" style="background:#E24B4A;"></div><span style="color:#A32D2D;font-weight:500;">'+pL+'%</span><span style="color:var(--color-text-secondary);">live</span></div><div class="pie-val"><div class="pie-dot" style="background:#378ADD;"></div><span style="color:#185FA5;font-weight:500;">'+pB+'%</span><span style="color:var(--color-text-secondary);">blank</span></div>';
+  pr.appendChild(pw); pr.appendChild(vals);
+  container.appendChild(pr);
+}
+
+// ── MAIN RENDER ──
+function render(){
+  const row=document.getElementById('shell-row');
+  row.innerHTML='';
+  const ci=currentIdx();
+
+  shells.forEach((s,i)=>{
+    const col=document.createElement('div');
+    col.className='shell-col'+(s.consumed?' consumed':'');
+    col.style.cssText='display:flex;flex-direction:column;align-items:center;gap:3px;';
+
+    // check if all prior shells are resolved
+    const priorResolved=shells.slice(0,i).every(ps=>ps.consumed);
+    const canInteract=priorResolved&&!s.consumed;
+    const isCurrent=i===ci&&!s.consumed;
+
+    // 1. DEALER
+    const dealer=document.createElement('div');
+    dealer.className='shell-cell'+(s.isDealer?' set':'')+(s.consumed?' consumed':'')+(canInteract?'':' disabled');
+    dealer.textContent='🤵';
+    if(canInteract){
+      dealer.title=s.isDealer?'Dealer turn active - tap to clear':'Click to mark as dealer turn';
+      dealer.onclick=()=>{ s.isDealer=!s.isDealer; if(s.isDealer){s.hasPhone=false;s.hasMirror=false;s.resolution=null;} render(); };
+      dealer.style.cursor='pointer';
+    } else if(!s.consumed){
+      dealer.title='Resolve prior shells first';
+      dealer.style.opacity='0.15';
+      dealer.style.pointerEvents='none';
+    }
+    col.appendChild(dealer);
+
+    // 2. PHONE (did you peek this ahead of time?)
+    // Only show if dealer is NOT selected AND not shell 1
+    if(!s.isDealer && i!==0){
+      const phone=document.createElement('div');
+      const canPhone=!s.consumed&&!s.isDealer&&i!==0;
+      phone.className='shell-cell'+(s.hasPhone?' set':'')+(s.consumed?' consumed':'')+(canPhone?'':' disabled');
+      phone.textContent='☎️';
+      if(canPhone){
+        phone.title=s.hasPhone?'☎️ Phone predicted: '+s.phoneType+' — click to clear':'Peek this shell with the burner phone';
+        phone.onclick=()=>{
+          if(s.hasPhone){ s.hasPhone=false; s.phoneType=null; refreshKnownFromSources(s); render(); }
+          else{ showTypeModal('Phone peek — what type is this shell?', type=>{ s.hasPhone=true; s.phoneType=type; s.knownType=type; addLog(i,'☎️ Phone: '+type); render(); }); }
+        };
+        phone.style.cursor='pointer';
+      } else if(s.consumed){
+        phone.title=s.hasPhone?'☎️ Phone predicted: '+s.phoneType:'No phone peek';
+      }
+      col.appendChild(phone);
+    } else {
+      // Don't show phone at all - add empty spacer
+      const spacer=document.createElement('div');
+      spacer.style.height='20px';
+      col.appendChild(spacer);
+    }
+
+    // 3. MIRROR (peek now?)
+    // Only show if dealer is NOT selected
+    if(!s.isDealer){
+      const mirror=document.createElement('div');
+      const canMirror=canInteract&&!s.isDealer&&isCurrent;
+      mirror.className='shell-cell'+(s.hasMirror?' set':'')+(s.consumed?' consumed':'')+(canMirror?'':' disabled');
+      mirror.textContent='🪞';
+      if(canMirror){
+        mirror.title='Use mirror to peek this shell now before firing - reveals the type';
+        mirror.onclick=()=>{ 
+          if(s.hasMirror){ s.hasMirror=false; s.mirrorType=null; refreshKnownFromSources(s); }
+          else{ showTypeModal('Mirror — what type is this shell?', type=>{ s.hasMirror=true; s.mirrorType=type; s.knownType=type; addLog(i,'🪞 Mirror: '+type); render(); }); }
+          render();
+        };
+        mirror.style.cursor='pointer';
+      } else if(!s.consumed && !isCurrent){
+        mirror.title='Only available on current shell';
+        mirror.style.opacity='0.15';
+      }
+      col.appendChild(mirror);
+    } else {
+      // Dealer selected - add empty spacer
+      const spacer=document.createElement('div');
+      spacer.style.height='20px';
+      col.appendChild(spacer);
+    }
+
+    // 4. Claimed MINI SHELLS
+    const ms=document.createElement('div');
+    ms.className='mini-shells';
+    ms.title='Claimed — shell type identified via phone or mirror';
+    const isBlindunknown=!s.knownType&&!s.consumed;
+    // Show ? when type is unknown before resolution, or after dealer/blind fire without phone
+    const showQuestion=isBlindunknown
+      ||(s.consumed&&s.isDealer&&!s.hasPhone)
+      ||(s.consumed&&s.resolution==='fire'&&!s.hasMirror&&!s.hasPhone);
+    // Mini shells are clickable if phone or mirror is set and shell not yet consumed
+    const canEditClaimed=!s.consumed&&(s.hasPhone||s.hasMirror);
+
+    // Live mini shell
+    const msLive=document.createElement('div');
+    msLive.className='mini-shell'+(s.knownType==='live'?' active':'')+(s.consumed?' locked':'')+(canEditClaimed?' clickable':'');
+    msLive.title=canEditClaimed?'Click to set as Live':'Live shell';
+    if(canEditClaimed) msLive.style.cursor='pointer';
+    const msLiveBody=document.createElement('div');
+    msLiveBody.className='ms-body';
+    msLiveBody.style.background=s.knownType==='live'?'#E24B4A':'var(--color-background-secondary)';
+    const msLiveBrass=document.createElement('div');
+    msLiveBrass.className='ms-brass';
+    if(s.knownType!=='live') msLiveBrass.style.opacity='0.3';
+    msLive.appendChild(msLiveBody);
+    msLive.appendChild(msLiveBrass);
+    if(canEditClaimed) msLive.onclick=()=>{
+      s.knownType='live';
+      if(s.hasPhone) s.phoneType='live';
+      if(s.hasMirror) s.mirrorType='live';
+      render();
+    };
+    ms.appendChild(msLive);
+
+    // Blank mini shell
+    const msBlank=document.createElement('div');
+    msBlank.className='mini-shell'+(s.knownType==='blank'?' active':'')+(s.consumed?' locked':'')+(canEditClaimed?' clickable':'');
+    msBlank.title=canEditClaimed?'Click to set as Blank':'Blank shell';
+    if(canEditClaimed) msBlank.style.cursor='pointer';
+    const msBlankBody=document.createElement('div');
+    msBlankBody.className='ms-body';
+    msBlankBody.style.background=s.knownType==='blank'?'#378ADD':'var(--color-background-secondary)';
+    const msBlankBrass=document.createElement('div');
+    msBlankBrass.className='ms-brass';
+    if(s.knownType!=='blank') msBlankBrass.style.opacity='0.3';
+    msBlank.appendChild(msBlankBody);
+    msBlank.appendChild(msBlankBrass);
+    if(canEditClaimed) msBlank.onclick=()=>{
+      s.knownType='blank';
+      if(s.hasPhone) s.phoneType='blank';
+      if(s.hasMirror) s.mirrorType='blank';
+      render();
+    };
+    ms.appendChild(msBlank);
+
+    // Question mark overlay when type is unknown; ?! when Claimed didn't match ejected
+    if(s.knownMismatch){
+      const qo=document.createElement('div');
+      qo.className='mini-question-overlay';
+      qo.textContent='?!';
+      qo.title='Claimed didn\'t match what was ejected — Claimed entry assumed wrong';
+      ms.appendChild(qo);
+    } else if(showQuestion){
+      const qo=document.createElement('div');
+      qo.className='mini-question-overlay';
+      qo.textContent='?';
+      ms.appendChild(qo);
+    }
+
+    col.appendChild(ms);
+
+    // 5. INVERTER
+    const invert=document.createElement('div');
+    const canInvert=canInteract&&!s.isDealer&&(s.hasPhone||s.hasMirror||!s.resolution);
+    const invert_class = (s.polarity?' active':'') + (s.consumed?' static':'');
+    invert.className='polarity-cell'+(!canInvert&&!s.polarity?' hidden':' '+invert_class);
+    invert.textContent='🔄';
+    if(s.consumed){
+      invert.title='Inverter was used - the outcome was flipped';
+    } else if(s.polarity){
+      invert.title='Inverter armed - outcome will be flipped live↔blank';
+    } else if(canInvert){
+      invert.title='Tap to arm inverter (flips outcome)';
+    } else {
+      invert.title='Set phone, mirror, or fire/eject first';
+    }
+    if(canInvert&&!s.consumed) invert.onclick=()=>{ s.polarity=!s.polarity; render(); };
+    col.appendChild(invert);
+
+    // Spacer to align with first separator
+    const spacer1=document.createElement('div');
+    spacer1.style.cssText='height:6px;';
+    col.appendChild(spacer1);
+
+    // 6. RESOLUTION METHOD (Fire or Eject)
+    // Only show if NOT dealer
+    if(!s.isDealer){
+      const method=document.createElement('div');
+      const canMethod=canInteract&&!s.isDealer;
+      const method_class = (s.resolution===null?'':' set') + (s.consumed?' consumed':'') + (!canMethod?' disabled':'');
+      method.className='shell-cell'+method_class;
+      if(s.resolution==='fire') method.textContent='💥';
+      else if(s.resolution==='eject') method.textContent='🍺';
+      else method.textContent='···';
+      
+      if(canMethod){
+        method.title=s.resolution?'Click to change or clear fire/eject method':'Choose how to resolve: Fire (💥) or Beer eject (🍺)';
+        method.onclick=()=>{
+          const opts=[{label:'Fire',val:'fire'},{label:'Beer',val:'eject'}];
+          showModal('Choose resolution method', body=>{
+            opts.forEach(opt=>{
+              const btn=document.createElement('div');
+              btn.className='modal-opt';
+              btn.textContent=(opt.val==='fire'?'💥 Fire':opt.val==='eject'?'🍺 Beer':'');
+              btn.onclick=()=>{ closeModal(); s.resolution=opt.val; render(); };
+              body.appendChild(btn);
+            });
+            if(s.resolution){
+              const clear=document.createElement('div');
+              clear.className='modal-opt';
+              clear.textContent='Clear method';
+              clear.onclick=()=>{ closeModal(); s.resolution=null; render(); };
+              body.appendChild(clear);
+            }
+          });
+        };
+        method.style.cursor='pointer';
+      } else if(!s.consumed){
+        method.title='Resolve prior shells first';
+        method.style.opacity='0.15';
+      }
+      col.appendChild(method);
+    } else {
+      // Dealer selected - add empty spacer instead of method
+      const spacer=document.createElement('div');
+      spacer.style.height='20px';
+      col.appendChild(spacer);
+    }
+
+    // 7. ACTION (outcome)
+    const oc=document.createElement('div');
+    if(s.consumed){
+      oc.className='outcome-cell active';
+      if(s.isDealer){ oc.textContent='✅'; oc.title='Dealer resolved this shell'; }
+      else if(s.resolution==='fire'){
+        const isBlindFire=!s.hasPhone&&!s.hasMirror;
+        oc.textContent=isBlindFire?'💀':'💥';
+        oc.title=isBlindFire?'Blind fired':'Fired (Claimed type)';
+      }
+      else if(s.resolution==='eject'){ oc.textContent='🍺'; oc.title='Ejected with beer'; }
+      else oc.textContent='·';
+    } else {
+      // Only glow when THIS is the current shell AND action is decided
+      const readyToFire=(s.isDealer)||(s.resolution==='fire')||(s.resolution==='eject');
+      const shouldGlow=isCurrent&&readyToFire;
+      oc.className='outcome-cell'+(shouldGlow?' pending':'');
+      if(s.isDealer){
+        oc.textContent='✅';
+        oc.title=isCurrent?'Tap to resolve dealer turn':'Waiting — resolve prior shells first';
+        if(isCurrent) oc.onclick=()=>tapOutcome(i);
+      } else if(s.resolution==='fire'){
+        const isBlindFire=!s.hasPhone&&!s.hasMirror;
+        oc.textContent=isBlindFire?'💀':'💥';
+        oc.title=isCurrent?(isBlindFire?'Tap to fire blind — you\'ll pick what came out':'Tap to fire'):'Waiting — resolve prior shells first';
+        if(isCurrent) oc.onclick=()=>tapOutcome(i);
+      } else if(s.resolution==='eject'){
+        oc.textContent='🍺';
+        oc.title=isCurrent?'Tap to eject with beer':'Waiting — resolve prior shells first';
+        if(isCurrent) oc.onclick=()=>tapOutcome(i);
+      } else {
+        oc.textContent='·';
+        oc.title='Select fire/eject method first';
+      }
+    }
+    col.appendChild(oc);
+
+    // Spacer to align with separator and push pill below the line
+    const spacer2=document.createElement('div');
+    spacer2.style.cssText='height:6px;'; // Increased from 3px to push pills fully below line
+    col.appendChild(spacer2);
+
+    // 8. EJECTED SHELL PILL
+    const pill=document.createElement('div');
+    // Ejected is populated only after action completion.
+    let dispType=s.consumed?(s.loadedType||null):null;
+    const showInversion=s.consumed&&s.polarity;
+
+    let pillCls='shell-pill '+(dispType||'unknown');
+    if(isCurrent&&!s.polarity) pillCls+=' current-ring';
+    if(s.polarity) pillCls+=' polarity-ring';
+    pill.className=pillCls;
+    pill.title=s.consumed
+      ?('Ejected: '+(s.loadedType||'unknown')+(s.polarity?' (inverted from '+s.knownType+')':''))
+      :(s.polarity
+        ?'Inverter armed — Ejected will populate after the action is completed'
+        :'unknown shell type');
+    const pbody=document.createElement('div');
+    pbody.className='sp-body';
+    pbody.style.background=(dispType==='live'?'#E24B4A':dispType==='blank'?'#378ADD':'var(--color-background-secondary)');
+    pbody.style.position='relative';
+    pbody.style.display='flex';
+    pbody.style.flexDirection='column';
+    pbody.style.alignItems='center';
+    pbody.style.justifyContent='center';
+    
+    // Shell number
+    const numSpan=document.createElement('span');
+    numSpan.style.cssText='font-size:11px;font-weight:500;color:'+(dispType?'#fff':'var(--color-text-tertiary)');
+    numSpan.textContent=i+1;
+    pbody.appendChild(numSpan);
+    
+    // Inversion emoji below the number
+    if(showInversion){
+      const invSpan=document.createElement('span');
+      invSpan.style.cssText='font-size:10px;line-height:1;margin-top:1px;';
+      invSpan.textContent='🔄';
+      pbody.appendChild(invSpan);
+    }
+    
+    const pbrass=document.createElement('div');
+    pbrass.className='sp-brass';
+    if(!dispType) pbrass.style.opacity='0.3';
+    pill.appendChild(pbody);
+    pill.appendChild(pbrass);
+    col.appendChild(pill);
+
+    // 9. UNDO
+    const undo=document.createElement('div');
+    if(s.consumed){
+      undo.className='undo-cell';
+      undo.textContent='↩';
+      undo.title='Rewind to shell '+(i+1);
+      undo.onclick=()=>undoFrom(i);
+    } else {
+      undo.style.height='14px';
+    }
+    col.appendChild(undo);
+
+    row.appendChild(col);
+  });
+
+  // COUNT TABLE (keep existing logic)
+  let liveGain=0,liveLose=0,blankGain=0,blankLose=0,liveEject=0,blankEject=0;
+  shells.forEach(s=>{
+    // Count inversions whenever inverter was used, using loadedType (what was actually loaded)
+    // For inverted shells: loadedType is opposite of what came out (ejectedType)
+    if(s.consumed&&s.polarity&&s.loadedType){
+      // When inverter is used, loadedType is what was loaded (opposite of what ejected)
+      // We need to figure out what was ACTUALLY loaded before inversion
+      // loadedType = what ejected, so loaded was the opposite
+      const actualLoaded=s.loadedType==='live'?'blank':'live';
+      if(actualLoaded==='live'){liveLose++;blankGain++;}
+      else{blankLose++;liveGain++;}
+    }
+    if(s.consumed){
+      if(s.loadedType==='live') liveEject++;
+      else if(s.loadedType==='blank') blankEject++;
+    }
+  });
+  const liveActual=liveTot+liveGain-liveLose;
+  const blankActual=blankTot+blankGain-blankLose;
+  document.getElementById('t-live-start').textContent=liveTot;
+  document.getElementById('t-live-gain').textContent=liveGain||'—';
+  document.getElementById('t-live-lose').textContent=liveLose||'—';
+  document.getElementById('t-live-actual').textContent=liveActual;
+  document.getElementById('t-live-tube').textContent=liveActual-liveEject;
+  document.getElementById('t-live-eject').textContent=liveEject;
+  document.getElementById('t-blank-start').textContent=blankTot;
+  document.getElementById('t-blank-gain').textContent=blankGain||'—';
+  document.getElementById('t-blank-lose').textContent=blankLose||'—';
+  document.getElementById('t-blank-actual').textContent=blankActual;
+  document.getElementById('t-blank-tube').textContent=blankActual-blankEject;
+  document.getElementById('t-blank-eject').textContent=blankEject;
+
+  // PROBABILITY
+  // Claimed unconsumed shells (phone or mirror) count as already allocated from the pool.
+  // An armed inverter does not change tube counts until the action is completed.
+  // Pool = remaining shells of each type not yet spoken for by ejection or Claimed prediction.
+  const ClaimedLive=shells.filter(s=>!s.consumed&&s.knownType==='live').length;
+  const ClaimedBlank=shells.filter(s=>!s.consumed&&s.knownType==='blank').length;
+  const usedLive=shells.filter(s=>s.consumed&&s.loadedType==='live').length;
+  const usedBlank=shells.filter(s=>s.consumed&&s.loadedType==='blank').length;
+  // Pool = what's left unallocated and unejected
+  const poolLive=liveActual-ClaimedLive-usedLive;
+  const poolBlank=blankActual-ClaimedBlank-usedBlank;
+  // unknown pool = unconsumed shells with no Claimed type (phone/mirror not set)
+  const unkTotal=shells.filter(s=>!s.consumed&&!s.knownType).length;
+
+  const nextActive=ci>=0?shells[ci]:null;
+  const nextunknown=shells.find(s=>!s.consumed&&!s.knownType);
+  const allEjected=!nextActive;
+  const allClaimed=!nextunknown;
+  const sameSect=nextActive&&nextunknown&&nextActive===nextunknown;
+
+  const probNext=document.getElementById('prob-next');
+  const probUnk=document.getElementById('prob-unknown');
+  const probDiv=document.getElementById('prob-divider');
+
+  if(allEjected){
+    renderProbSection(probNext,'Next shell in chamber',0,0,true,'All shells ejected.');
+    probDiv.style.display='none';
+    probUnk.innerHTML='';
+  } else {
+    const ns=shells[ci];
+    const nsType=ns.polarity?(ns.knownType==='live'?'blank':ns.knownType==='blank'?'live':null):ns.knownType;
+    const titleNext='Next shell in chamber (shell '+(ci+1)+')';
+    if(nsType){
+      renderProbSection(probNext,titleNext,nsType==='live'?100:0,nsType==='blank'?100:0,false);
+    } else if(unkTotal>0){
+      let pL=Math.round(poolLive/unkTotal*100),pB=Math.round(poolBlank/unkTotal*100);
+      // If inverter is armed on this shell, swap the probabilities
+      if(ns.polarity){ const temp=pL; pL=pB; pB=temp; }
+      renderProbSection(probNext,titleNext,pL,pB,false);
+    } else {
+      renderProbSection(probNext,titleNext,0,0,true,'unknown');
+    }
+    if(allClaimed){
+      probDiv.style.display='none';
+      probUnk.innerHTML='';
+      const p=document.createElement('p');
+      p.className='prob-empty';
+      p.style.marginTop='10px';
+      p.textContent='All shells claimed.';
+      probNext.appendChild(p);
+    } else if(sameSect){
+      probDiv.style.display='none';
+      probUnk.innerHTML='';
+    } else {
+      probDiv.style.display='block';
+      const nki=shells.indexOf(nextunknown);
+      const pL=Math.round(poolLive/unkTotal*100),pB=Math.round(poolBlank/unkTotal*100);
+      renderProbSection(probUnk,'Next unknown shell (shell '+(nki+1)+')',pL,pB,false);
+    }
+  }
+
+  renderLog();
+  document.getElementById('done-banner').style.display=shells.every(s=>s.consumed)?'block':'none';
+}
+function renderLog(){
+  const card=document.getElementById('log-card');
+  const list=document.getElementById('log-list');
+  if(!card) return;
+  card.style.display=showLog?'block':'none';
+  if(!showLog) return;
+  list.innerHTML='';
+  if(!log.length){
+    const d=document.createElement('div');
+    d.className='log-entry'; d.textContent='No actions yet.';
+    list.appendChild(d); return;
+  }
+  [...log].reverse().forEach(e=>{
+    const d=document.createElement('div');
+    d.className='log-entry';
+    const shellLabel=e.shellIdx===-1?'<strong>SYSTEM</strong>':'<strong>Shell '+(e.shellIdx+1)+'</strong>';
+    d.innerHTML=shellLabel+' — '+e.msg;
+    list.appendChild(d);
+  });
+}
+
+function addLog(shellIdx,msg){ log.push({shellIdx,msg}); }
+
+function copyLogToClipboard(){
+  const logText=log.map(e=>'[Shell '+(e.shellIdx===-1?'SYSTEM':e.shellIdx+1)+'] '+e.msg).join('\n');
+  navigator.clipboard.writeText(logText).then(()=>{
+    alert('Event log copied to clipboard!');
+  }).catch(err=>{
+    alert('Failed to copy: '+err);
+  });
+}
+
+function showModal(title,bodyFn){
+  document.getElementById('modal-title').textContent=title;
+  const body=document.getElementById('modal-body');
+  body.innerHTML=''; bodyFn(body);
+  document.getElementById('modal').style.display='flex';
+}
+
+function closeModal(){ document.getElementById('modal').style.display='none'; }
+
+function showLegend(){
+  showModal('Help — Buckshot Roulette Tracker v1.1.0', body=>{
+    const intro=document.createElement('p');
+    intro.style.cssText='font-size:13px;color:var(--color-text-secondary);margin:0 0 12px;line-height:1.5;';
+    intro.textContent='Each column is one shell, tracked top to bottom. Enter claimed information from items, then tap the glowing Action cell to record what actually came out.';
+    body.appendChild(intro);
+
+    const sections=[
+      {title:'Row by row — top to bottom',items:[
+        ['🤵','Dealer','Toggle on if this shell belongs to the dealer\'s turn. Hides phone, mirror, and fire/eject rows. Tap the ✅ Action cell to record what the dealer ejected.'],
+        ['☎️','Phone','Used the burner phone to peek a future shell. Tap any shell ahead of the current one to record its predicted type. Updates the Claimed row and probabilities immediately. Tap again to clear. Always clearable — undo also clears it.'],
+        ['🪞','Mirror','Used a mirror to peek the current shell before firing. Sets the Claimed row. If you then arm the inverter, the Ejected pill will show the split when fired.'],
+        ['Claimed','Mini shells','The two small shells show values you entered from phone or mirror (red = live, blue = blank). You are responsible for these values; they affect probability until Ejected overrides them. Shows ? when unknown, ?! when the ejected result did not match the Claimed entry.'],
+        ['🔄','Invert','Arm the inverter before firing or beer-ejecting. The shell will come out as the opposite type. It does not change Ejected or count-table values until the action is resolved.'],
+        ['💥 / 🍺','Fire / Eject','Choose how this shell gets resolved: fire it (💥) or eject it with beer (🍺). Click an already-selected method to change or clear it.'],
+        ['💀 / 💥 / 🍺 / ✅','Action','The pulsing cell — tap to resolve the shell. Blind fire shows 💀, fire with Claimed type shows 💥, beer eject shows 🍺, dealer shows ✅. Only the current shell pulses.'],
+        ['Ejected','Final shell','Populates only after an action is completed. Once populated, this value affects probability and overrides incorrect Claimed entries. Split color means an inverter was used: small triangle = original loaded type, large field = what came out.'],
+        ['↩','Undo','Rewinds to this shell and clears everything after it. Phone peeks on future shells are preserved.'],
+      ]},
+      {title:'Rings on the shell pill',items:[
+        ['Gray ring','Current shell','This is the next shell in the chamber.'],
+        ['Purple ring','Inverter armed','The inverter is armed on this shell — outcome will be flipped.'],
+      ]},
+      {title:'Probability',items:[
+        ['Next shell','Current odds','100% if type is Claimed (phone/mirror). Otherwise based on remaining pool after accounting for all Claimed and ejected shells. Accuracy depends on successful entry of shell types, especially Ejected values.'],
+        ['Next unknown','Future odds','Odds for the next shell with no Claimed type. Updates as phone/mirror predictions are entered.'],
+      ]},
+      {title:'Count table',items:[
+        ['Start','Initial count','How many of each type were loaded. Never changes.'],
+        ['Inversions','Completed flips','The + and − columns show shells gained or lost by completed inverter actions. Armed-but-unresolved inverters do not count here.'],
+        ['Actual','True total','Start adjusted by completed inverter flips.'],
+        ['In tube','Remaining','Not yet ejected.'],
+        ['Ejected','Resolved','Fired, beer-ejected, or dealer-resolved.'],
+      ]},
+      {title:'Mismatch handling',items:[
+        ['⚠️','Claimed ≠ ejected','If what came out doesn\'t match the phone/mirror entry, the tracker assumes the claimed entry was wrong. Ejected wins. Claimed shows ?! and the event log records a warning.'],
+        ['🔄 dealer','Dealer invert','For possible dealer outcomes, the tracker asks whether you saw the dealer use the inverter. If the dealer outcome is mathematically impossible without inversion, it records the inverter automatically.'],
+      ]},
+    ];
+
+    sections.forEach(sec=>{
+      const st=document.createElement('p');
+      st.className='legend-section-title'; st.textContent=sec.title;
+      body.appendChild(st);
+      sec.items.forEach(([icon,name,desc])=>{
+        const row=document.createElement('div'); row.className='legend-row';
+        const ic=document.createElement('span'); ic.className='legend-icon'; ic.textContent=icon;
+        const nm=document.createElement('span'); nm.className='legend-name'; nm.textContent=name;
+        const ds=document.createElement('span'); ds.className='legend-desc'; ds.textContent=desc;
+        row.appendChild(ic); row.appendChild(nm); row.appendChild(ds);
+        body.appendChild(row);
+      });
+    });
+  });
+}
+
+buildPips();
+</script>
+</body>
+</html>
+
+
+
